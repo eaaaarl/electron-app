@@ -1,7 +1,6 @@
 {
   "name": "electron-app",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -40,5 +39,9 @@
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5"
   },
-  "main": "dist-electron/main.js"
+  "main": "dist-electron/main.js",
+  "author": "Eaaaarl",
+  "license": "MIT",
+  "description": "Electron App",
+  "version": "0.0.1"
 }
