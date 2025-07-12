@@ -1,9 +1,7 @@
-import { app, BrowserWindow, ipcMain } from "electron";
-// import { createRequire } from 'node:module'
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-// const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // The built directory structure
@@ -15,6 +13,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // │ │ ├── main.js
 // │ │ └── preload.mjs
 // │
+
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient("electron-app", process.execPath, [
+      path.resolve(process.argv[1]),
+    ]);
+  }
+} else {
+  app.setAsDefaultProtocolClient("electron-app");
+}
+
 process.env.APP_ROOT = path.join(__dirname, "..");
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
@@ -64,8 +73,11 @@ function createWindow() {
     minHeight: 768,
     frame: false,
     titleBarStyle: "hidden",
+    show: false, // Don't show until ready
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
@@ -86,7 +98,6 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, "index.html"));
   }
 
@@ -95,6 +106,30 @@ function createWindow() {
       splashScreen.close();
     }
     win?.show();
+  });
+}
+
+// Single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (event, commandLine) => {
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+
+  // Create mainWindow when app is ready
+  app.whenReady().then(() => {
+    createSplashWindow();
+    createWindow();
+  });
+
+  app.on("open-url", (event, url) => {
+    dialog.showErrorBox("Welcome Back", `You arrived from: ${url}`);
   });
 }
 
@@ -112,15 +147,12 @@ app.on("activate", () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
+    createSplashWindow();
     createWindow();
   }
 });
 
-app.whenReady().then(() => {
-  createWindow();
-  createSplashWindow();
-});
-
+// IPC handlers
 ipcMain.handle("window-maximize", () => {
   if (win?.isMaximized()) {
     win.unmaximize();
